@@ -6,6 +6,8 @@ from pdf2image import convert_from_path
 from decimal import Decimal
 import re
 import tempfile
+from multiprocessing import Pool, cpu_count
+from functools import partial
 
 app = Flask(__name__)
 app.secret_key = os.urandom(24)
@@ -40,32 +42,43 @@ def extract_amounts_from_text(text):
     
     return amounts
 
+def process_page(args):
+    page_num, image = args
+    try:
+        # Extract text using OCR
+        text = pytesseract.image_to_string(image, lang='fra')
+        
+        # Extract amounts from the text
+        amounts = extract_amounts_from_text(text)
+        return [(page_num + 1, amount) for amount in amounts]
+    except Exception as e:
+        print(f"Error processing page {page_num + 1}: {str(e)}")
+        return []
+
 def process_pdf(file_path):
-    amounts_found = []
-    
     try:
         # Convert PDF pages to images
         images = convert_from_path(file_path)
         
-        for page_num, image in enumerate(images):
-            # Extract text using OCR
-            text = pytesseract.image_to_string(image, lang='fra')
-            
-            # Extract amounts from the text
-            page_amounts = extract_amounts_from_text(text)
-            for amount in page_amounts:
-                amounts_found.append((page_num + 1, amount))
+        # Create a pool of workers
+        num_workers = max(1, cpu_count() - 1)  # Leave one CPU free
+        with Pool(processes=num_workers) as pool:
+            # Process pages in parallel
+            results = pool.map(process_page, enumerate(images))
+        
+        # Flatten results
+        amounts_found = [item for sublist in results for item in sublist]
+        
+        total_amount = sum(amount for _, amount in amounts_found)
+        
+        return {
+            'file_name': os.path.basename(file_path),
+            'total_amount': float(total_amount),
+            'amounts_found': [(page, float(amount)) for page, amount in amounts_found]
+        }, None
     
     except Exception as e:
         return None, str(e)
-    
-    total_amount = sum(amount for _, amount in amounts_found)
-    
-    return {
-        'file_name': os.path.basename(file_path),
-        'total_amount': float(total_amount),
-        'amounts_found': [(page, float(amount)) for page, amount in amounts_found]
-    }, None
 
 @app.route('/')
 def index():

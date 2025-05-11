@@ -64,6 +64,12 @@
                                 <span class="visually-hidden">Loading...</span>
                             </div>
                             <p class="mt-2">Processing your file...</p>
+                            <div class="progress mt-3" style="display: none;">
+                                <div class="progress-bar progress-bar-striped progress-bar-animated" 
+                                     role="progressbar" 
+                                     style="width: 0%" 
+                                     id="progressBar">0%</div>
+                            </div>
                         </div>
 
                         <div class="result-card" id="resultCard">
@@ -169,10 +175,31 @@
 
         function showLoading() {
             loading.style.display = 'block';
+            const progressBar = document.querySelector('.progress');
+            progressBar.style.display = 'block';
+            
+            // Simulate progress since we can't get real progress from the server
+            let progress = 0;
+            const interval = setInterval(() => {
+                progress += 5;
+                if (progress > 90) {
+                    clearInterval(interval);
+                }
+                updateProgress(progress);
+            }, 500);
+        }
+
+        function updateProgress(percent) {
+            const progressBar = document.getElementById('progressBar');
+            progressBar.style.width = `${percent}%`;
+            progressBar.textContent = `${percent}%`;
         }
 
         function hideLoading() {
             loading.style.display = 'none';
+            const progressBar = document.querySelector('.progress');
+            progressBar.style.display = 'none';
+            updateProgress(0);
         }
 
         function showResult(data) {
