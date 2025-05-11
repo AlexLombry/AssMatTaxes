@@ -1,6 +1,14 @@
 # Tax Deduction Finder
 
-This Python application processes PDF files to find and sum up tax deduction amounts using OCR (Optical Character Recognition). It looks for amounts near the text "Mont" in your PDF files.
+A web application that processes PDF files to find and sum up tax deduction amounts using OCR (Optical Character Recognition). It looks for amounts near the text "Mont" in your PDF files.
+
+## Features
+
+- Modern web interface with drag-and-drop file upload
+- Real-time PDF processing
+- Detailed results showing amounts by page
+- Support for French number formats
+- Automatic file cleanup after processing
 
 ## Requirements
 
@@ -10,6 +18,8 @@ This Python application processes PDF files to find and sum up tax deduction amo
   - pytesseract
   - pdf2image
   - Pillow
+  - Flask
+  - Werkzeug
 
 ## Installation
 
@@ -34,44 +44,35 @@ This Python application processes PDF files to find and sum up tax deduction amo
 
 ## Usage
 
-1. Place your PDF files in the same directory as the script
-2. Run the script:
+1. Start the web server:
    ```bash
-   python tax_deduction_finder.py
+   python app.py
    ```
 
-### Debug Mode
+2. Open your web browser and navigate to:
+   ```
+   http://localhost:5000
+   ```
 
-To enable debug mode, which shows detailed information about the processing:
-```bash
-python tax_deduction_finder.py --debug
-# or
-python tax_deduction_finder.py -v
-```
+3. Use the web interface to:
+   - Drag and drop your PDF file
+   - Or click to select a file
+   - View the processing results
+   - See amounts by page
+   - Get the total amount
 
-Debug mode will show:
-- Each page being processed
-- Lines containing the keyword "Mont"
-- Found amounts in matching lines
-- Any conversion errors
-- Number of amounts found per page
+## Development
 
-This is useful for verifying that the script is correctly identifying and processing the relevant lines in your PDFs.
-
-The script will:
-- Convert PDF pages to images
-- Use OCR to extract text from the images
-- Find amounts near the text "Mont"
-- Display the amounts found on each page
-- Show the total amount for each file
-- Show the grand total across all files
+The application consists of:
+- `app.py`: Flask web server and PDF processing logic
+- `templates/index.html`: Web interface
+- `uploads/`: Temporary storage for uploaded files (automatically cleaned)
 
 ## Output Format
 
-The output will show:
-- The name of each processed file
-- The total amount found in each file
+The results will show:
+- The name of the processed file
+- The total amount found
 - A breakdown of amounts by page number
-- A grand total across all processed files
 
 All amounts are displayed in euros (€) with two decimal places. 

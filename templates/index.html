@@ -1,0 +1,218 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Tax Deduction Finder</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
+    <style>
+        .drop-zone {
+            border: 2px dashed #ccc;
+            border-radius: 8px;
+            padding: 2rem;
+            text-align: center;
+            background: #f8f9fa;
+            cursor: pointer;
+            transition: all 0.3s ease;
+        }
+        .drop-zone:hover {
+            border-color: #0d6efd;
+            background: #e9ecef;
+        }
+        .drop-zone.dragover {
+            border-color: #0d6efd;
+            background: #e9ecef;
+        }
+        .result-card {
+            display: none;
+            margin-top: 2rem;
+        }
+        .loading {
+            display: none;
+            margin-top: 2rem;
+        }
+        .error-message {
+            display: none;
+            margin-top: 1rem;
+        }
+    </style>
+</head>
+<body>
+    <div class="container py-5">
+        <div class="row justify-content-center">
+            <div class="col-md-8">
+                <div class="card shadow">
+                    <div class="card-body">
+                        <h1 class="text-center mb-4">Tax Deduction Finder</h1>
+                        
+                        <div class="drop-zone" id="dropZone">
+                            <div class="mb-3">
+                                <i class="bi bi-file-earmark-pdf fs-1"></i>
+                            </div>
+                            <h5>Drag & Drop your PDF file here</h5>
+                            <p class="text-muted">or</p>
+                            <input type="file" id="fileInput" class="d-none" accept=".pdf">
+                            <button class="btn btn-primary" onclick="document.getElementById('fileInput').click()">
+                                Choose File
+                            </button>
+                        </div>
+
+                        <div class="error-message alert alert-danger" id="errorMessage"></div>
+
+                        <div class="loading text-center" id="loading">
+                            <div class="spinner-border text-primary" role="status">
+                                <span class="visually-hidden">Loading...</span>
+                            </div>
+                            <p class="mt-2">Processing your file...</p>
+                        </div>
+
+                        <div class="result-card" id="resultCard">
+                            <h4 class="mb-3">Results</h4>
+                            <div class="mb-3">
+                                <strong>File:</strong> <span id="fileName"></span>
+                            </div>
+                            <div class="mb-3">
+                                <strong>Total Amount:</strong> <span id="totalAmount"></span>
+                            </div>
+                            <div class="mb-3">
+                                <strong>Amounts by Page:</strong>
+                                <ul class="list-group mt-2" id="amountsList"></ul>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const dropZone = document.getElementById('dropZone');
+        const fileInput = document.getElementById('fileInput');
+        const loading = document.getElementById('loading');
+        const resultCard = document.getElementById('resultCard');
+        const errorMessage = document.getElementById('errorMessage');
+
+        // Prevent default drag behaviors
+        ['dragenter', 'dragover', 'dragleave', 'drop'].forEach(eventName => {
+            dropZone.addEventListener(eventName, preventDefaults, false);
+            document.body.addEventListener(eventName, preventDefaults, false);
+        });
+
+        // Highlight drop zone when item is dragged over it
+        ['dragenter', 'dragover'].forEach(eventName => {
+            dropZone.addEventListener(eventName, highlight, false);
+        });
+
+        ['dragleave', 'drop'].forEach(eventName => {
+            dropZone.addEventListener(eventName, unhighlight, false);
+        });
+
+        // Handle dropped files
+        dropZone.addEventListener('drop', handleDrop, false);
+        fileInput.addEventListener('change', handleFiles, false);
+
+        function preventDefaults(e) {
+            e.preventDefault();
+            e.stopPropagation();
+        }
+
+        function highlight(e) {
+            dropZone.classList.add('dragover');
+        }
+
+        function unhighlight(e) {
+            dropZone.classList.remove('dragover');
+        }
+
+        function handleDrop(e) {
+            const dt = e.dataTransfer;
+            const files = dt.files;
+            handleFiles({ target: { files: files } });
+        }
+
+        function handleFiles(e) {
+            const file = e.target.files[0];
+            if (file && file.type === 'application/pdf') {
+                uploadFile(file);
+            } else {
+                showError('Please upload a PDF file');
+            }
+        }
+
+        function uploadFile(file) {
+            const formData = new FormData();
+            formData.append('file', file);
+
+            showLoading();
+            hideError();
+            hideResult();
+
+            fetch('/upload', {
+                method: 'POST',
+                body: formData
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.error) {
+                    showError(data.error);
+                } else {
+                    showResult(data);
+                }
+            })
+            .catch(error => {
+                showError('An error occurred while processing the file');
+            })
+            .finally(() => {
+                hideLoading();
+            });
+        }
+
+        function showLoading() {
+            loading.style.display = 'block';
+        }
+
+        function hideLoading() {
+            loading.style.display = 'none';
+        }
+
+        function showResult(data) {
+            document.getElementById('fileName').textContent = data.file_name;
+            document.getElementById('totalAmount').textContent = formatAmount(data.total_amount);
+            
+            const amountsList = document.getElementById('amountsList');
+            amountsList.innerHTML = '';
+            data.amounts_found.forEach(([page, amount]) => {
+                const li = document.createElement('li');
+                li.className = 'list-group-item d-flex justify-content-between align-items-center';
+                li.innerHTML = `
+                    <span>Page ${page}</span>
+                    <span class="badge bg-primary rounded-pill">${formatAmount(amount)}</span>
+                `;
+                amountsList.appendChild(li);
+            });
+
+            resultCard.style.display = 'block';
+        }
+
+        function hideResult() {
+            resultCard.style.display = 'none';
+        }
+
+        function showError(message) {
+            errorMessage.textContent = message;
+            errorMessage.style.display = 'block';
+        }
+
+        function hideError() {
+            errorMessage.style.display = 'none';
+        }
+
+        function formatAmount(amount) {
+            return new Intl.NumberFormat('fr-FR', {
+                style: 'currency',
+                currency: 'EUR'
+            }).format(amount);
+        }
+    </script>
+</body>
+</html> 
